@@ -37,10 +37,10 @@ public:
     }
 
     // block type
-        
+
     BOOST_REVERSE_FOREACH(mc::Section_Compound Section, L->Sections) {
-      block_rotation br_blocks(s.rotation, Section.Blocks);
-      block_rotation br_data(s.rotation, Section.Data);
+      block_rotation br_blocktates(s.rotation, Section.BlockStates);
+      block_rotation br_palette(s.rotation, Section.Palette);
       block_rotation br_block_light(s.rotation, Section.BlockLight);
       block_rotation br_sky_light(s.rotation, Section.SkyLight);
 
@@ -55,14 +55,14 @@ public:
               continue;
             }
 
-            br_blocks.set_xz(x, z);
-            br_data.set_xz(x, z);
+            br_blocktates.set_xz(x, z);
+            br_palette.set_xz(x, z);
             br_block_light.set_xz(x, z);
             br_sky_light.set_xz(x, z);
 
             // do incremental color fill until color is opaque
-            int block_type = br_blocks.get8(y);
-            int block_data = br_data.get4(y);
+            int block_type = br_blocktates.get8(y);
+            int block_data = br_palette.get4(y);
 
             if (block_type >=0 && s.excludes[block_type]) {
               continue;
@@ -98,10 +98,10 @@ public:
               // Check if the requested block is the top block
               if(block_data & 0x08) {
                 // Small sanity check
-                if(y > 0 && br_blocks.get8(y-1) == block_type) {
+                if(y > 0 && br_blocktates.get8(y-1) == block_type) {
                   // Minecraft currently doesn't set the lower bits to the
                   // corresponding type so we have to do this here.
-                  block_data = br_data.get4(y-1) | 0x08;
+                  block_data = br_palette.get4(y-1) | 0x08;
                   top =  mc::get_color(block_type, block_data);
                   side = mc::get_side_color(block_type, block_data);
                 }
