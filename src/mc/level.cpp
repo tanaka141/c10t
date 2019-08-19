@@ -9,29 +9,6 @@
 #include <boost/shared_array.hpp>
 #include <boost/shared_ptr.hpp>
 
-/*
-Compound() {
-  Compound(Level) {
-    List(Entities, TAG_Byte, 0): [ ]
-    ByteArray(Biomes): (256 bytes)
-    Long(LastUpdate): 7446079
-    Int(xPos): -1
-    Int(zPos): -1
-    List(TileEntities, TAG_Compound, 0): [ ]
-    Byte(TerrainPopulated): 0x1
-    IntArray(HeightMap): (256 ints)
-    List(Sections, TAG_Compound, 1): [
-      Compound() {
-        ByteArray(SkyLight): (2048 bytes)
-        ByteArray(BlockLight): (2048 bytes)
-        Byte(Y): 0x0
-        ByteArray(BlockStates): (4096 bytes)
-      }
-    ]
-  }
-}
-*/
-
 namespace mc {
   enum section_name {
     Level,
@@ -41,7 +18,7 @@ namespace mc {
 
   struct level_context {
     boost::shared_ptr<Level_Compound> Level;
-    
+
     bool error;
     size_t error_where;
     const char* error_why;
@@ -82,20 +59,20 @@ namespace mc {
 
   void end_compound(level_context* C, nbt::String name) {
     if (in_level_section(C)) {
-        if (!C->tmp_Section->Data) {
-            std::cout << "missing Data" << std::endl;
-        }
-
         if (!C->tmp_Section->SkyLight) {
-            std::cout << "missing SkyLight" << std::endl;
+            std::cout << " missing SkyLight" << std::endl;
         }
 
         if (!C->tmp_Section->BlockLight) {
             std::cout << "missing BlockLight" << std::endl;
         }
 
-        if (!C->tmp_Section->Blocks) {
-            std::cout << "missing Blocks" << std::endl;
+        if (!C->tmp_Section->BlockStates) {
+            std::cout << "missing BlockStates" << std::endl;
+        }
+
+        if (!C->tmp_Section->Palette) {
+            std::cout << "missing Palette" << std::endl;
         }
 
         C->Level->Sections.push_back(C->tmp_Section);
@@ -119,6 +96,14 @@ namespace mc {
   }
 
   void register_string(level_context* C, nbt::String name, nbt::String value) {
+    if (C->pos == 4
+        && C->p[4] == Palette)
+    {
+      if (name.compare("Name") == 0) {
+        C->tmp_Section->Name = value;
+        return;
+      }
+    }
   }
 
   void register_byte(level_context* C, nbt::String name, nbt::Byte value) {
@@ -140,8 +125,8 @@ namespace mc {
   void register_byte_array(level_context* C, nbt::String name, nbt::ByteArray* byte_array) {
     if (in_level_section(C))
     {
-      if (name.compare("Data") == 0) {
-        C->tmp_Section->Data.reset(byte_array);
+      if (name.compare("Palette") == 0) {
+        C->tmp_Section->Palette.reset(byte_array);
         return;
       }
 
@@ -155,8 +140,8 @@ namespace mc {
         return;
       }
 
-      if (name.compare("Blocks") == 0) {
-        C->tmp_Section->Blocks.reset(byte_array);
+      if (name.compare("BlockStates") == 0) {
+        C->tmp_Section->BlockStates.reset(byte_array);
         return;
       }
     }
@@ -168,7 +153,7 @@ namespace mc {
 
     delete long_array;
   }
-  
+
   void error_handler(level_context* C, size_t where, const char *why) {
     C->error = true;
     C->error_where = where;
@@ -203,9 +188,9 @@ namespace mc {
   void level::read(dynamic_buffer& buffer)
   {
     level_context context;
-    
+
     nbt::Parser<level_context> parser(&context);
-    
+
     parser.register_byte_array = register_byte_array;
     parser.register_int_array = register_int_array;
     parser.register_long_array = register_long_array;
@@ -232,11 +217,11 @@ namespace mc {
     std::string chunk_data = oss.str();
 
     parser.parse_buffer(buffer.get(), len);
-    
+
     if (context.error) {
       throw invalid_file(context.error_why);
     }
-    
+
     if (!context.Level) {
       throw invalid_file("not a level data file");
     }
